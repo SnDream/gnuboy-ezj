@@ -16,11 +16,11 @@ extern int debug_trace;
 
 struct ezj ezj;
 
-#define EZJ_DEBUG					0
+#define EZJ_DEBUG					1
 
 #if EZJ_DEBUG
 #define EZJ_D_REG_CALL				1
-#define EZJ_D_REG_CALL_LOCK			1
+#define EZJ_D_REG_CALL_LOCK			0
 #define EZJ_D_REG_CALL_SDWR			1
 #define EZJ_D_WR					1
 #define EZJ_D_LDR_LOAD_ROM			1
@@ -144,6 +144,16 @@ void ezj_reg_call_eLDRSE(byte v)
 void ezj_reg_call_eROMSE(byte v)
 {
 	dprt_reg_call("%s %02X\n", __func__, v);
+	switch (v) {
+		case eROMSE_NOMBC:
+		case eROMSE_MBC1:
+		case eROMSE_MBC2:
+		case eROMSE_MBC3:
+		case eROMSE_MBC3T:
+		case eROMSE_MBC5:
+		case eROMSE_FALLBACK:
+		ezj.rom_se = v;
+	}
 	return;
 }
 
@@ -151,28 +161,28 @@ void ezj_reg_call_eSDSECTOR0(byte v)
 {
 	dprt_reg_call("%s %02X\n", __func__, v);
 	ezj.sd_sector &= 0xFFFFFF00;
-	ezj.sd_sector |= v << (0 * 8);
+	ezj.sd_sector |= (un32)v << (0 * 8);
 }
 
 void ezj_reg_call_eSDSECTOR1(byte v)
 {
 	dprt_reg_call("%s %02X\n", __func__, v);
 	ezj.sd_sector &= 0xFFFF00FF;
-	ezj.sd_sector |= v << (1 * 8);
+	ezj.sd_sector |= (un32)v << (1 * 8);
 }
 
 void ezj_reg_call_eSDSECTOR2(byte v)
 {
 	dprt_reg_call("%s %02X\n", __func__, v);
 	ezj.sd_sector &= 0xFF00FFFF;
-	ezj.sd_sector |= v << (2 * 8);
+	ezj.sd_sector |= (un32)v << (2 * 8);
 }
 
 void ezj_reg_call_eSDSECTOR3(byte v)
 {
 	dprt_reg_call("%s %02X\n", __func__, v);
 	ezj.sd_sector &= 0x00FFFFFF;
-	ezj.sd_sector |= v << (3 * 8);
+	ezj.sd_sector |= (un32)v << (3 * 8);
 }
 
 
@@ -205,21 +215,21 @@ void ezj_reg_call_eSDWR(byte v)
 void ezj_reg_call_eSRAMSE(byte v)
 {
 	dprt_reg_call("%s %02X\n", __func__, v);
-	ezj.sram_type = v;
+	ezj.sram_se = v;
 }
 
 void ezj_reg_call_eROMBANKMASK0(byte v)
 {
 	dprt_reg_call("%s %02X\n", __func__, v);
 	ezj.rom_bank_mask &= 0x0100;
-	ezj.rom_bank_mask |= (v & 0xFF) << (0 * 8);
+	ezj.rom_bank_mask |= ((word)v & 0xFF) << (0 * 8);
 }
 
 void ezj_reg_call_eROMBANKMASK1(byte v)
 {
 	dprt_reg_call("%s %02X\n", __func__, v);
 	ezj.rom_bank_mask &= 0x00FF;
-	ezj.rom_bank_mask |= (v & 0x01) << (1 * 8);
+	ezj.rom_bank_mask |= ((word)v & 0x01) << (1 * 8);
 }
 
 void ezj_reg_call_eROMHEADERSUM(byte v)
@@ -320,7 +330,9 @@ inline int ezj_reg_access(int a)
 
 void ezj_reg_call(int addr, byte value)
 {
+#if 0
 	dprt_wr("EZJ %04X = %02X\n", addr, value);
+#endif
 	if (ezj_reg_call_list[EZJ_REG(addr)]) {
 		ezj_reg_call_list[EZJ_REG(addr)](value);
 	} else {
@@ -428,6 +440,8 @@ void ezj_init()
 
 	ezj.stage = EZJ_STAGE1;
 
+	ezj.sram_fw = EZJ_FW_VER;
+
 	ezj.enable = 1;
 	ezj.reset = 1;
 }
@@ -437,7 +451,7 @@ void ezj_reset()
 	if (ezj.reset) {
 		ezj.lock = 3;
 
-		ezj.sram_type = eSRAMSE_UNMAP;
+		ezj.sram_se = eSRAMSE_UNMAP;
 		memset(ezj.rom, 0xFF, sizeof(ezj.rom));
 		memset(ezj.sram_sd_buf, 0xFF, sizeof(ezj.sram_sd_buf));
 		memset(ezj.sram_ldr_buf, 0xFF, sizeof(ezj.sram_ldr_buf));
@@ -448,25 +462,9 @@ void ezj_reset()
 		ezj.unk2 = 0;
 		ezj.unk3 = 0;
 
-		ezj.sd_se = 0;
-		ezj.sd_busy = 0;
-
-		ezj.ldr_se = 0;
-		ezj.ldr_busy = 0;
-
-		ezj.sd_sector = 0;
-
-		ezj.sram_fw = 5;
-
-		ezj.rom_header_sum = 0;
-
 		ezj.stage = EZJ_STAGE1;
-		ezj.sram_type = eSRAMSE_UNMAP;
-		ezj.mbc_type = eROMSE_NOMBC;
-		ezj.mbc.rombank = 0x01;
-		ezj.mbc.rambank = 0x00;
-		ezj.mbc.enableram = 0x00;
-		ezj.mbc.rtc = 0x00;
+		ezj.sram_se = eSRAMSE_UNMAP;
+		ezj.rom_se = eROMSE_NOMBC;
 
 		ezj.rom_bank_mask = 0x1FF;
 		ezj.save_bank_mask = 0x3F;
@@ -474,6 +472,21 @@ void ezj_reset()
 	} else {
 		ezj.reset = 1;
 	}
+
+	ezj.sd_se = 0;
+	ezj.sd_busy = 0;
+
+	ezj.ldr_se = 0;
+	ezj.ldr_busy = 0;
+
+	ezj.sd_sector = 0;
+
+	ezj.rom_header_sum = 0;
+
+	ezj.mbc.rombank = 0x01;
+	ezj.mbc.rambank = 0x00;
+	ezj.mbc.enableram = 0x00;
+	ezj.mbc.rtc = 0x00;
 
 	byte c = ezj_read(0x0143);
 	hw.cgb = ((c == 0x80) || (c == 0xc0));
@@ -490,60 +503,54 @@ void ezj_exit()
 	}
 }
 
-void ezj_write(int a, byte v)
+void ezj_write_sys(int a, byte v)
 {
 	int ra;
-	byte ha = (a>>12) & 0xE;
+	byte ha = (a>>12) & 0xF;
 
-	a &= 0xFFFF;
 	if (ezj_reg_access(a)) {
 		return ezj_reg_call(a, v);
 	}
 	switch(ha) {
-	case 0x0:
-		return;
 	case 0x2:
-		if (!(a & 0x1000)) {
-			ezj.mbc.rombank &= 0x100;
-			ezj.mbc.rombank |= (v << 0) & ezj.rom_bank_mask;
-		} else {
-			ezj.mbc.rombank &= 0x0FF;
-			ezj.mbc.rombank |= (v << 8) & ezj.rom_bank_mask;
-		}
-
+		ezj.mbc.rombank = (ezj.mbc.rombank & 0x100) | (((word)v << 0) & 0x0FF);
+		return;
+	case 0x3:
+		ezj.mbc.rombank = (ezj.mbc.rombank & 0x0FF) | (((word)v << 0) & 0x100);
 		return;
 	case 0x4:
-		ezj.mbc.rambank = v & ezj.save_bank_mask;
-		return;
-	case 0x6:
-		return;
-	case 0x08:
+	case 0x5:
+		ezj.mbc.rambank = v & 0x3F;
 		return;
 	case 0xA:
-		ra = a - 0xA000;
+	case 0xB:
+		ra = a & 0x1FFF;
 		if (ezj.sd_se) {
 			switch (ezj.sd_se) {
-				case eSDSE_SECTOR:
-					ezj.sram_sd_buf[0][ra] = v;
-					return;
+			case eSDSE_SECTOR:
+				// dprt_wr("SDST w%04X = %02X\n", a, v);
+				ezj.sram_sd_buf[0][ra] = v;
+				return;
+			case eSDSE_STATUS:
+				ezj.sram_sd_buf[0][ra] = v;
+				// dprt_wr("SDAT w%04X = %02X\n", a, v);
+				return;
 			}
 		} else if (ezj.ldr_se) {
 			switch (ezj.ldr_se) {
-				case eLDRSE_LDROM:
-					ezj.sram_ldr_buf[ra] = v;
-					if (a == sLDRCMD00) {
-						ezj.ldr_start = 1;
-					}
-					return;
+			case eLDRSE_LDROM:
+				ezj.sram_ldr_buf[ra] = v;
+				ezj.ldr_start = 1;
+				return;
 			}
-		} else if (ezj.sram_type) {
-			switch (ezj.sram_type) {
+		} else if (ezj.sram_se) {
+			switch (ezj.sram_se) {
 			case eSRAMSE_UNK:
-				printf("UNK %04X = %02X\n", a, v);
 				ezj.sram_unk_buf[ra] = v;
 				return;
 			case eSRAMSE_SAVE:
 				ezj.ram[ezj.mbc.rambank][ra] = v;
+				// dprt_wr("SAVE r%04X = %02X, %02X\n", a, v, ezj.mbc.rambank);
 				return;
 			case eSRAMSE_FW:
 				return;
@@ -551,7 +558,6 @@ void ezj_write(int a, byte v)
 				ezj.sram_fiup_buf[ra] = v;
 				return;
 			case eSRAMSE_RTC:
-				printf("uRTC w%04X = %02X\n", a, v);
 				return;
 			}
 		}
@@ -563,58 +569,174 @@ void ezj_write(int a, byte v)
 	}
 }
 
-byte ezj_read(int a)
+void ezj_write_mbc(int a, byte v)
+{
+	int ra;
+	byte ha = a>>12;
+
+	if (ezj_reg_access(a)) {
+		return ezj_reg_call(a, v);
+	}
+	switch(ezj.rom_se) {
+	case eROMSE_NOMBC:
+	case eROMSE_FALLBACK:
+		return;
+	case eROMSE_MBC1:
+		switch (ha & 0xE) {
+		case 0x0:
+			ezj.mbc.enableram = ((v & 0x0F) == 0x0A);
+			return;
+		case 0x2:
+			v &= 0x1F;
+			ezj.mbc.rombank = (v ? v : 0x01) | (ezj.mbc.rombank & 0x60);
+			ezj.mbc.rombank &= ezj.rom_bank_mask;
+			return;
+		case 0x4:
+			v &= 0x03;
+			if (ezj.mbc.mbc1_sel) {
+				ezj.mbc.rambank = v & ezj.save_bank_mask;
+			} else {
+				mbc.rombank = (mbc.rombank & 0x1F) | ((word)v << 5);
+				mbc.rombank &= ezj.rom_bank_mask;
+				return;
+			}
+			return;
+		case 0x6:
+			ezj.mbc.mbc1_sel = v & 0x1;
+			return;
+		case 0xA:
+			if (ezj.mbc.enableram) {
+				ezj.ram[ezj.mbc.rambank][a & 0x1FFF] = v;
+			}
+			return;
+		}
+	case eROMSE_MBC2:
+		switch (ha & 0xC) {
+		case 0x0:
+			if (a & 0x0100) {
+				ezj.mbc.enableram = ((v & 0x0F) == 0x0A);
+				return;
+			} else {
+				ezj.mbc.rombank = (v & 0x0F) & ezj.rom_bank_mask;
+				return;
+			}
+		case 0xA:
+			if (ezj.mbc.enableram) {
+				ezj.ram[ezj.mbc.rambank][a & 0x1FFF] = v;
+			}
+			return;
+		}
+	case eROMSE_MBC3:
+		switch (ha & 0xE) {
+		case 0x0:
+			ezj.mbc.enableram = ((v & 0x0F) == 0x0A);
+			return;
+		case 0x2:
+			v &= 0x7F;
+			ezj.mbc.rombank = (v ? v : 0x01) & ezj.rom_bank_mask ;
+			return;
+		case 0x4:
+			ezj.mbc.rambank = (v & 0x0F) & ezj.save_bank_mask;
+			return;
+		case 0xA:
+			if (ezj.mbc.enableram) {
+				ezj.ram[ezj.mbc.rambank][a & 0x1FFF] = v;
+			}
+			return;
+		}
+	case eROMSE_MBC3T:
+		switch (ha & 0xE) {
+		case 0x0:
+			ezj.mbc.enableram = ((v & 0x0F) == 0x0A);
+			return;
+		case 0x2:
+			v &= 0x7F;
+			ezj.mbc.rombank = (v ? v : 0x01) & ezj.rom_bank_mask ;
+			return;
+		case 0x4:
+			/* TODO RTC */
+			ezj.mbc.rambank = (v & 0x0F) & ezj.save_bank_mask;
+			return;
+		case 0x6:
+			/* TODO RTC */
+			return;
+		case 0xA:
+			if (ezj.mbc.enableram) {
+				ezj.ram[ezj.mbc.rambank][a & 0x1FFF] = v;
+			}
+			return;
+		}
+	case eROMSE_MBC5:
+		switch (ha & 0xF) {
+		case 0x0:
+		case 0x1:
+			ezj.mbc.enableram = ((v & 0x0F) == 0x0A);
+			return;
+		case 0x2:
+			ezj.mbc.rombank = (ezj.mbc.rombank & 0x100) | (((word)v << 0) & 0x0FF);
+			ezj.mbc.rombank &= ezj.rom_bank_mask;
+			return;
+		case 0x3:
+			ezj.mbc.rombank = (ezj.mbc.rombank & 0x0FF) | (((word)v << 0) & 0x100);
+			ezj.mbc.rombank &= ezj.rom_bank_mask;
+			return;
+		case 0x4:
+		case 0x5:
+			ezj.mbc.rambank = (v & 0x0F) & ezj.save_bank_mask;
+			return;
+		case 0xA:
+			if (ezj.mbc.enableram) {
+				ezj.ram[ezj.mbc.rambank][a & 0x1FFF] = v;
+			}
+			return;
+		}
+	}
+	dprt_wr("UNKW %04X = %02X\n", a, v);
+	return;
+}
+
+byte ezj_read_sys(int a)
 {
 	byte ha = (a>>12) & 0xE;
 	int ra;
 
-	a &= 0xFFFF;
 	switch (ha) {
 	case 0x0:
 	case 0x2:
-		switch (ezj.stage) {
-		case EZJ_STAGE1:
-			return ezj.rom_stage1[0][a];
-		case EZJ_STAGE2:
-		case EZJ_STAGE3:
-			return ezj.rom[0][a];
-		}
+			return ezj.stage == EZJ_STAGE1 ? ezj.rom_stage1[0][a] : ezj.rom[0][a];
 	case 0x4:
 	case 0x6:
-		switch (ezj.stage) {
-		case EZJ_STAGE1:
-			return ezj.rom_stage1[0][a];
-		case EZJ_STAGE2:
-		case EZJ_STAGE3:
-			return ezj.rom[ezj.mbc.rombank][a & 0x3FFF];
-		}
+			return ezj.stage == EZJ_STAGE1 ? ezj.rom_stage1[0][a] : ezj.rom[ezj.mbc.rombank][a & 0x3FFF];
 	case 0xA:
-		ra = a - 0xA000;
+		ra = a & 0x1FFF;
 		if (ezj.sd_se) {
 			switch (ezj.sd_se) {
-				case eSDSE_SECTOR:
-					return ezj.sram_sd_buf[0][ra];
-				case eSDSE_STATUS:
-					if (ezj.sd_busy) ezj.sd_busy--;
-					return ezj.sd_busy ? sSDSTATUS_BUSY : sSDSTATUS_DONE;
+			case eSDSE_SECTOR:
+				// dprt_wr("SDAT r%04X = %02X\n", a, ezj.sram_sd_buf[0][ra]);
+				return ezj.sram_sd_buf[0][ra];
+			case eSDSE_STATUS:
+				// dprt_wr("SDAT r%04X , %02X\n", a, ezj.sd_busy);
+				if (ezj.sd_busy) ezj.sd_busy--;
+				return ezj.sd_busy ? sSDSTATUS_BUSY : sSDSTATUS_DONE;
 			}
 		} else if (ezj.ldr_se) {
 			switch (ezj.ldr_se) {
-				case eLDRSE_LDROM:
-					return ezj.sram_ldr_buf[ra];
-				case eLDRSE_STATUS:
-					if (ezj.ldr_start) {
-						ezj_ldr_load_rom();
-						ezj.ldr_start = 0;
-					}
-					if (ezj.ldr_busy) ezj.ldr_busy--;
-					return ezj.ldr_busy ? sLDRSTAT_BUSY : sLDRSTAT_DONE;
+			case eLDRSE_LDROM:
+				return ezj.sram_ldr_buf[ra];
+			case eLDRSE_STATUS:
+				if (ezj.ldr_start) {
+					ezj_ldr_load_rom();
+					ezj.ldr_start = 0;
+				}
+				if (ezj.ldr_busy) ezj.ldr_busy--;
+				return ezj.ldr_busy ? sLDRSTAT_BUSY : sLDRSTAT_DONE;
 			}
-		} else if (ezj.sram_type) {
-			switch (ezj.sram_type) {
+		} else if (ezj.sram_se) {
+			switch (ezj.sram_se) {
 			case eSRAMSE_UNK:
 				return ezj.sram_unk_buf[ra];
 			case eSRAMSE_SAVE:
+				dprt_wr("SAVE r%04X = %02X, %02X\n", a, ezj.ram[ezj.mbc.rambank][ra], ezj.mbc.rambank);
 				return ezj.ram[ezj.mbc.rambank][ra];
 			case eSRAMSE_FW:
 				return ezj.sram_fw;
@@ -629,8 +751,8 @@ byte ezj_read(int a)
 				case sRTCWEEK: return 0x06;
 				case sRTCMONTH: return 0x05;
 				case sRTCYEAR: return 0x22;
+				default: return 0xFF;
 				}
-				return 0xFF;
 			}
 		}
 		dprt_wr("UNKA r%04X\n", a);
@@ -638,5 +760,50 @@ byte ezj_read(int a)
 	default:
 		dprt_wr("UNKR r%04X\n", a);
 		return 0xFF;
+	}
+}
+
+byte ezj_read_mbc(int a)
+{
+	byte ha = (a>>12) & 0xE;
+	int ra;
+
+	switch (ha) {
+	case 0x0:
+	case 0x2:
+		return ezj.rom[0][a];
+	case 0x4:
+	case 0x6:
+		return ezj.rom[ezj.mbc.rombank][a & 0x3FFF];
+	case 0xA:
+		return ezj.mbc.enableram ? ezj.ram[ezj.mbc.rambank][a & 0x1FFF] : 0xFF;
+	default:
+		dprt_wr("UNKR r%04X\n", a);
+		return 0xFF;
+	}
+}
+
+void ezj_write(int a, byte v)
+{
+	a &= 0xFFFF;
+	switch (ezj.stage) {
+	case EZJ_STAGE1:
+	case EZJ_STAGE2:
+		return ezj_write_sys(a, v);
+	case EZJ_STAGE3:
+		return ezj_write_mbc(a, v);
+	}
+}
+
+
+byte ezj_read(int a)
+{
+	a &= 0xFFFF;
+	switch (ezj.stage) {
+	case EZJ_STAGE1:
+	case EZJ_STAGE2:
+		return ezj_read_sys(a);
+	case EZJ_STAGE3:
+		return ezj_read_mbc(a);
 	}
 }

@@ -483,8 +483,7 @@ void mem_write(int a, byte b)
 	case 0x2:
 	case 0x4:
 	case 0x6:
-		if (ezj.enable)
-			return ezj_write(a, b);
+		if (ezj.enable) return ezj_write(a, b);
 		mbc_write(a, b);
 		break;
 	case 0x8:
@@ -492,8 +491,7 @@ void mem_write(int a, byte b)
 		vram_write(a & 0x1FFF, b);
 		break;
 	case 0xA:
-		if (ezj.enable)
-			return ezj_write(a, b);
+		if (ezj.enable) return ezj_write(a, b);
 		if (!mbc.enableram) break;
 		if (rtc.sel&8)
 		{

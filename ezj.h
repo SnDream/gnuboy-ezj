@@ -22,6 +22,8 @@
 
 #define EZJ_REG(reg) ((reg) & 0xFF)
 
+#define EZJ_FW_VER (5)
+
 #define eUNLK1          0x7f00
 #define eUNLK1_MAGIC        0xe1
 #define eUNLK2          0x7f10
@@ -143,6 +145,8 @@ struct ezj_mbc {
 	byte rambank;
 	byte enableram;
 	byte rtc;
+
+	byte mbc1_sel;
 };
 
 struct ezj
@@ -160,10 +164,10 @@ struct ezj
 	byte *sd_card;
 
 	byte stage;
-	byte mbc_type;
+	byte rom_se;
 	struct ezj_mbc mbc;
 
-	byte sram_type;
+	byte sram_se;
 	byte sram_sd_buf[4][512];
 	byte sram_ldr_buf[0x2000];
 	byte sram_unk_buf[0x2000];
