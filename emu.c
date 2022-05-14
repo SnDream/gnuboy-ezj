@@ -12,7 +12,7 @@
 #include "sys.h"
 #include "sound.h"
 #include "cpu.h"
-
+#include "ezj.h"
 
 static int framelen = 16743;
 static int framecount;
@@ -49,6 +49,7 @@ void emu_init()
 
 void emu_reset()
 {
+	ezj_reset();
 	hw_reset();
 	lcd_reset();
 	cpu_reset();

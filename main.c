@@ -16,6 +16,7 @@
 #include "loader.h"
 #include "mem.h"
 #include "menu.h"
+#include "ezj.h"
 
 #include "Version"
 
@@ -364,10 +365,11 @@ int main(int argc, char *argv[])
 
 	/* FIXME - make interface modules responsible for atexit() */
 	atexit(shutdown);
-	catch_signals();
+	// catch_signals();
 	vid_init();
 	joy_init();
 	pcm_init();
+	ezj_init();
 	menu_init();
 
 	if(rom) load_rom_and_rc(rom);

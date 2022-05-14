@@ -15,6 +15,7 @@
 #define MBC_RUMBLE 15
 #define MBC_HUC1 0xC1
 #define MBC_HUC3 0xC3
+#define MBC_EZJ 0x80
 
 struct mbc
 {

@@ -82,7 +82,7 @@ static int romsize_table[256] =
 static int ramsize_table[256] =
 {
 	1, 1, 1, 4, 16,
-	4 /* FIXME - what value should this be?! */
+	8 /* FIXME - what value should this be?! */
 };
 
 
@@ -537,6 +537,7 @@ static void cleanup()
 {
 	sram_save();
 	rtc_save();
+	ezj_exit();
 	/* IDEA - if error, write emergency savestate..? */
 }
 

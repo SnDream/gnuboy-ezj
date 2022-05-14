@@ -10,6 +10,7 @@
 #include "lcd.h"
 #include "lcdc.h"
 #include "sound.h"
+#include "ezj.h"
 
 struct mbc mbc;
 struct rom rom;
@@ -77,6 +78,12 @@ void mem_updatemap()
 	map[0xE] = ram.ibank[0] - 0xE000;
 	map[0xF] = NULL;
 
+	if (ezj.enable) {
+		map[0x0] = map[0x1] = map[0x2] = map[0x3] = NULL;
+		map[0x4] = map[0x5] = map[0x6] = map[0x7] = NULL;
+		map[0xA] = map[0xB] = NULL;
+	}
+
 	map = mbc.wmap;
 	map[0x0] = map[0x1] = map[0x2] = map[0x3] = NULL;
 	map[0x4] = map[0x5] = map[0x6] = map[0x7] = NULL;
@@ -87,6 +94,9 @@ void mem_updatemap()
 		map[0xB] = ram.sbank[mbc.rambank] - 0xA000;
 	}
 	else map[0xA] = map[0xB] = NULL;
+	if (ezj.enable) {
+		map[0xA] = map[0xB] = NULL;
+	}
 	map[0xC] = ram.ibank[0] - 0xC000;
 	n = R_SVBK & 0x07;
 	map[0xD] = ram.ibank[n?n:1] - 0xD000;
@@ -473,6 +483,8 @@ void mem_write(int a, byte b)
 	case 0x2:
 	case 0x4:
 	case 0x6:
+		if (ezj.enable)
+			return ezj_write(a, b);
 		mbc_write(a, b);
 		break;
 	case 0x8:
@@ -480,6 +492,8 @@ void mem_write(int a, byte b)
 		vram_write(a & 0x1FFF, b);
 		break;
 	case 0xA:
+		if (ezj.enable)
+			return ezj_write(a, b);
 		if (!mbc.enableram) break;
 		if (rtc.sel&8)
 		{
@@ -541,14 +555,20 @@ byte mem_read(int a)
 	{
 	case 0x0:
 	case 0x2:
+		if (ezj.enable)
+			return ezj_read(a);
 		return rom.bank[0][a];
 	case 0x4:
 	case 0x6:
+		if (ezj.enable)
+			return ezj_read(a);
 		return rom.bank[mbc.rombank][a & 0x3FFF];
 	case 0x8:
 		/* if ((R_STAT & 0x03) == 0x03) return 0xFF; */
 		return lcd.vbank[R_VBK&1][a & 0x1FFF];
 	case 0xA:
+		if (ezj.enable)
+			return ezj_read(a);
 		if (!mbc.enableram && mbc.type == MBC_HUC3)
 			return 0x01;
 		if (!mbc.enableram)
