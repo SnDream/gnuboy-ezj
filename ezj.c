@@ -677,7 +677,7 @@ void ezj_write_mbc(int a, byte v)
 			ezj.mbc.rombank &= ezj.rom_bank_mask;
 			return;
 		case 0x3:
-			ezj.mbc.rombank = (ezj.mbc.rombank & 0x0FF) | (((word)v << 0) & 0x100);
+			ezj.mbc.rombank = (ezj.mbc.rombank & 0x0FF) | (((word)v << 8) & 0x100);
 			ezj.mbc.rombank &= ezj.rom_bank_mask;
 			return;
 		case 0x4:
