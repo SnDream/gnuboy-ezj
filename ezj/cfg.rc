@@ -1,0 +1,15 @@
+set scale 2
+
+forcecgb 1
+
+unbindall
+bind esc menu
+bind w +up
+bind s +down
+bind a +left
+bind d +right
+bind k +b
+bind l +a
+bind f +start
+bind r +select
+bind q reset
