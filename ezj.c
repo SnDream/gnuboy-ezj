@@ -314,6 +314,8 @@ inline int ezj_reg_access(int a)
 	case eUNLK2:
 	case eUNLK3:
 	case eLOCK1:
+	case eUNK1: /* It is not affected by UNLK? */
+	case eUNK2: /* It is not affected by UNLK? */
 		return 1;
 	default:
 		return !(ezj.lock);
