@@ -176,7 +176,6 @@ struct ezj
 	byte sram_ldr_buf[0x2000];
 	byte sram_unk_buf[0x2000];
 	byte sram_fw;
-	byte sram_fiup_buf[0x2000];
 
 	byte sd_se;
 	byte sd_busy;
@@ -184,6 +183,9 @@ struct ezj
 	byte ldr_se;
 	byte ldr_start;
 	byte ldr_busy;
+
+	byte fiup_se;
+	byte fiup_busy;
 
 	byte unk1;
 	byte unk2;

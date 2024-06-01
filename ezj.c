@@ -245,6 +245,7 @@ void ezj_reg_call_eRTCW(byte v)
 void ezj_reg_call_eFIUPSE(byte v)
 {
 	dprt_reg_call("%s %02X\n", __func__, v);
+	ezj.fiup_se = v;
 	return;
 }
 
@@ -447,7 +448,6 @@ void ezj_reset()
 		memset(ezj.sram_sd_buf, 0xFF, sizeof(ezj.sram_sd_buf));
 		memset(ezj.sram_ldr_buf, 0xFF, sizeof(ezj.sram_ldr_buf));
 		memset(ezj.sram_unk_buf, 0xFF, sizeof(ezj.sram_unk_buf));
-		memset(ezj.sram_fiup_buf, 0xFF, sizeof(ezj.sram_fiup_buf));
 
 		ezj.unk1 = eUNK1_FIRMROM;
 		ezj.unk2 = eUNK2_EZJSYS;
@@ -466,11 +466,14 @@ void ezj_reset()
 
 	ezj.lock = 3;
 
-	ezj.sd_se = 0;
+	ezj.sd_se = eSDSE_UNMAP;
 	ezj.sd_busy = 0;
 
-	ezj.ldr_se = 0;
+	ezj.ldr_se = eLDRSE_UNMAP;
 	ezj.ldr_busy = 0;
+
+	ezj.fiup_se = eFIUPSE_UNMAP;
+	ezj.fiup_busy = 0;
 
 	ezj.sd_sector = 0;
 
@@ -533,6 +536,8 @@ void ezj_write_sys(int a, byte v)
 				ezj.ldr_start = 1;
 				return;
 			}
+		} else if (ezj.fiup_se) {
+			return;
 		} else if (ezj.sram_se) {
 			switch (ezj.sram_se) {
 			case eSRAMSE_UNK:
@@ -545,7 +550,7 @@ void ezj_write_sys(int a, byte v)
 			case eSRAMSE_FW:
 				return;
 			case eSRAMSE_FIUP:
-				ezj.sram_fiup_buf[ra] = v;
+				ezj.fiup_busy = 10;
 				return;
 			case eSRAMSE_RTC:
 				return;
@@ -718,6 +723,12 @@ byte ezj_read_sys(int a)
 				if (ezj.ldr_busy) ezj.ldr_busy--;
 				return ezj.ldr_busy ? sLDRSTAT_BUSY : sLDRSTAT_DONE;
 			}
+		} else if (ezj.fiup_se) {
+			switch (ezj.fiup_se) {
+			case eFIUPSE_STATUS:
+				if (ezj.fiup_busy) ezj.fiup_busy--;
+				return ezj.fiup_busy;
+			}
 		} else if (ezj.sram_se) {
 			switch (ezj.sram_se) {
 			case eSRAMSE_UNK:
@@ -728,7 +739,7 @@ byte ezj_read_sys(int a)
 			case eSRAMSE_FW:
 				return ezj.sram_fw;
 			case eSRAMSE_FIUP:
-				return ezj.sram_fiup_buf[ra];
+				return 0xFF;
 			case eSRAMSE_RTC:
 				switch(a) {
 				case sRTCSEC: return 0x00;
