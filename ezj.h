@@ -36,8 +36,12 @@
 #define eSDSE_SECTOR        0x01
 #define eSDSE_STATUS        0x03
 
-#define eUNK1           0x7f31
-#define eUNK2           0x7f32
+#define eUNK1           0x7f31 /* rom map mark i guess */
+#define eUNK2_SPRAMROM      0x00
+#define eUNK1_FIRMROM       0x80
+#define eUNK2           0x7f32 /* sram map mark i guess */
+#define eUNK2_EZJMBC        0x00
+#define eUNK2_EZJSYS        0x80
 
 #define eLDRSE          0x7f36
 #define eLDRSE_UNMAP        0x00

@@ -116,14 +116,6 @@ void ezj_reg_call_eUNK1(byte v)
 void ezj_reg_call_eUNK2(byte v)
 {
 	dprt_reg_call("%s %02X\n", __func__, v);
-	switch (v) {
-	case 0x80:
-		ezj.stage = EZJ_STAGE2;
-		break;
-	case 0x00:
-		ezj.stage = EZJ_STAGE3;
-		break;
-	}
 	ezj.unk2 = v;
 }
 
@@ -458,8 +450,8 @@ void ezj_reset()
 		memset(ezj.sram_unk_buf, 0xFF, sizeof(ezj.sram_unk_buf));
 		memset(ezj.sram_fiup_buf, 0xFF, sizeof(ezj.sram_fiup_buf));
 
-		ezj.unk1 = 0;
-		ezj.unk2 = 0;
+		ezj.unk1 = eUNK1_FIRMROM;
+		ezj.unk2 = eUNK2_EZJSYS;
 		ezj.unk3 = 0;
 
 		ezj.stage = EZJ_STAGE1;
@@ -508,9 +500,6 @@ void ezj_write_sys(int a, byte v)
 	int ra;
 	byte ha = (a>>12) & 0xF;
 
-	if (ezj_reg_access(a)) {
-		return ezj_reg_call(a, v);
-	}
 	switch(ha) {
 	case 0x2:
 		ezj.mbc.rombank = (ezj.mbc.rombank & 0x100) | (((word)v << 0) & 0x0FF);
@@ -574,9 +563,6 @@ void ezj_write_mbc(int a, byte v)
 	int ra;
 	byte ha = a>>12;
 
-	if (ezj_reg_access(a)) {
-		return ezj_reg_call(a, v);
-	}
 	switch(ezj.rom_se) {
 	case eROMSE_NOMBC:
 	case eROMSE_FALLBACK:
@@ -703,10 +689,10 @@ byte ezj_read_sys(int a)
 	switch (ha) {
 	case 0x0:
 	case 0x2:
-			return ezj.stage == EZJ_STAGE1 ? ezj.rom_stage1[0][a] : ezj.rom[0][a];
+		return (ezj.unk1 & eUNK1_FIRMROM) ? ezj.rom_stage1[0][a] : ezj.rom[0][a];
 	case 0x4:
 	case 0x6:
-			return ezj.stage == EZJ_STAGE1 ? ezj.rom_stage1[0][a] : ezj.rom[ezj.mbc.rombank][a & 0x3FFF];
+		return (ezj.unk1 & eUNK1_FIRMROM) ? ezj.rom_stage1[0][a] : ezj.rom[ezj.mbc.rombank][a & 0x3FFF];
 	case 0xA:
 		ra = a & 0x1FFF;
 		if (ezj.sd_se) {
@@ -786,24 +772,15 @@ byte ezj_read_mbc(int a)
 void ezj_write(int a, byte v)
 {
 	a &= 0xFFFF;
-	switch (ezj.stage) {
-	case EZJ_STAGE1:
-	case EZJ_STAGE2:
-		return ezj_write_sys(a, v);
-	case EZJ_STAGE3:
-		return ezj_write_mbc(a, v);
+	if (ezj_reg_access(a)) {
+		return ezj_reg_call(a, v);
 	}
+	return (ezj.unk2 & eUNK2_EZJSYS) ? ezj_write_sys(a, v) : ezj_write_mbc(a, v);
 }
 
 
 byte ezj_read(int a)
 {
 	a &= 0xFFFF;
-	switch (ezj.stage) {
-	case EZJ_STAGE1:
-	case EZJ_STAGE2:
-		return ezj_read_sys(a);
-	case EZJ_STAGE3:
-		return ezj_read_mbc(a);
-	}
+	return (ezj.unk2 & eUNK2_EZJSYS) ? ezj_read_sys(a) : ezj_read_mbc(a);
 }
