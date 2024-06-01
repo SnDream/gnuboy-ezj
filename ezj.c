@@ -314,8 +314,6 @@ inline int ezj_reg_access(int a)
 	case eUNLK2:
 	case eUNLK3:
 	case eLOCK1:
-	case eUNK1: /* It is not affected by UNLK? */
-	case eUNK2: /* It is not affected by UNLK? */
 		return 1;
 	default:
 		return !(ezj.lock);
@@ -443,7 +441,6 @@ void ezj_init()
 void ezj_reset()
 {
 	if (ezj.reset) {
-		ezj.lock = 3;
 
 		ezj.sram_se = eSRAMSE_UNMAP;
 		memset(ezj.rom, 0xFF, sizeof(ezj.rom));
@@ -466,6 +463,8 @@ void ezj_reset()
 	} else {
 		ezj.reset = 1;
 	}
+
+	ezj.lock = 3;
 
 	ezj.sd_se = 0;
 	ezj.sd_busy = 0;
