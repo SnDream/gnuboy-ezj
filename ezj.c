@@ -236,9 +236,11 @@ void ezj_reg_call_eSAVEBANKMASK(byte v)
 	ezj.save_bank_mask = v;
 }
 
+void ezj_rtc_write();
 void ezj_reg_call_eRTCW(byte v)
 {
 	dprt_reg_call("%s %02X\n", __func__, v);
+	ezj_rtc_write();
 	return;
 }
 
@@ -384,6 +386,67 @@ void ezj_ldr_load_rom()
 	memcpy(&(ezj.rom[0][target]), &(ezj.sd_card[offset]), size);
 }
 
+static inline byte bcd2dec(byte v)
+{
+	return (v & 0x0f) + (v >> 4) * 10;
+}
+
+static inline byte dec2bcd(byte v)
+{
+	return ((v / 10) << 4) + v % 10;
+}
+
+void ezj_rtc_tm2byte()
+{
+	ezj.rtc_sec   = dec2bcd(ezj.rtc_tm.tm_sec);
+	ezj.rtc_min   = dec2bcd(ezj.rtc_tm.tm_min);
+	ezj.rtc_hour  = dec2bcd(ezj.rtc_tm.tm_hour);
+	ezj.rtc_day   = dec2bcd(ezj.rtc_tm.tm_mday);
+	ezj.rtc_week  = dec2bcd(ezj.rtc_tm.tm_wday);
+	ezj.rtc_month = dec2bcd(ezj.rtc_tm.tm_mon) + 1;
+	ezj.rtc_year  = dec2bcd(ezj.rtc_tm.tm_year - 100);
+}
+
+void ezj_rtc_byte2tm()
+{
+	ezj.rtc_tm.tm_sec  = bcd2dec(ezj.rtc_sec);
+	ezj.rtc_tm.tm_min  = bcd2dec(ezj.rtc_min);
+	ezj.rtc_tm.tm_hour = bcd2dec(ezj.rtc_hour);
+	ezj.rtc_tm.tm_mday = bcd2dec(ezj.rtc_day);
+	ezj.rtc_tm.tm_wday = bcd2dec(ezj.rtc_week);
+	ezj.rtc_tm.tm_mon  = bcd2dec(ezj.rtc_month) - 1;
+	ezj.rtc_tm.tm_year = bcd2dec(ezj.rtc_year) + 100;
+}
+
+void ezj_rtc_update()
+{
+	byte sec_dec;
+	ezj.rtc_tt_now = time(NULL) + ezj.rtc_tt_offset;
+	sec_dec = ezj.rtc_tm.tm_sec + (ezj.rtc_tt_now - ezj.rtc_tt_base);
+	if (sec_dec >= 60) {
+		ezj.rtc_tt_base = ezj.rtc_tt_now;
+		localtime_r(&ezj.rtc_tt_base, &ezj.rtc_tm);
+		ezj_rtc_tm2byte();
+	} else {
+		ezj.rtc_sec = dec2bcd(sec_dec);
+	}
+}
+
+void ezj_rtc_write()
+{
+	ezj_rtc_byte2tm();
+	ezj.rtc_tt_base = mktime(&ezj.rtc_tm);
+	ezj.rtc_tt_offset = ezj.rtc_tt_base - time(NULL);
+}
+
+void ezj_rtc_init()
+{
+	ezj.rtc_tt_now = time(NULL) + ezj.rtc_tt_offset;
+	ezj.rtc_tt_base = ezj.rtc_tt_now;
+	localtime_r(&ezj.rtc_tt_base, &ezj.rtc_tm);
+	ezj_rtc_tm2byte();
+}
+
 void ezj_load_stage1()
 {
 	int fd;
@@ -425,6 +488,15 @@ void ezj_init()
 		read_ret = read(fd, ezj.ram, sizeof(ezj.ram));
 		close(fd);
 	}
+
+	fd = open(EZJ_RTC_FILE, O_RDONLY);
+	if (fd >= 0) {
+		read_ret = read(fd, &ezj.rtc_tt_offset, sizeof(ezj.rtc_tt_offset));
+		close(fd);
+	} else {
+		ezj.rtc_tt_offset = 0;
+	}
+	ezj_rtc_init();
 
 	ezj_load_stage1();
 
@@ -497,6 +569,10 @@ void ezj_exit()
 	if (fd >= 0) {
 		write_ret = write(fd, ezj.ram, sizeof(ezj.ram));
 	}
+	fd = open(EZJ_RTC_FILE, O_WRONLY | O_CREAT, 0644);
+	if (fd >= 0) {
+		write_ret = write(fd, &ezj.rtc_tt_offset, sizeof(ezj.rtc_tt_offset));
+	}
 }
 
 void ezj_write_sys(int a, byte v)
@@ -553,6 +629,15 @@ void ezj_write_sys(int a, byte v)
 				ezj.fiup_busy = 10;
 				return;
 			case eSRAMSE_RTC:
+				switch(a) {
+				case sRTCSEC:   ezj.rtc_sec   = v;
+				case sRTCMIN:   ezj.rtc_min   = v;
+				case sRTCHOUR:  ezj.rtc_hour  = v;
+				case sRTCDAY:   ezj.rtc_day   = v;
+				case sRTCWEEK:  ezj.rtc_week  = v;
+				case sRTCMONTH: ezj.rtc_month = v;
+				case sRTCYEAR:  ezj.rtc_year  = v;
+				}
 				return;
 			}
 		}
@@ -741,14 +826,15 @@ byte ezj_read_sys(int a)
 			case eSRAMSE_FIUP:
 				return 0xFF;
 			case eSRAMSE_RTC:
+				ezj_rtc_update();
 				switch(a) {
-				case sRTCSEC: return 0x00;
-				case sRTCMIN: return 0x27;
-				case sRTCHOUR: return 0x01;
-				case sRTCDAY: return 0x14;
-				case sRTCWEEK: return 0x06;
-				case sRTCMONTH: return 0x05;
-				case sRTCYEAR: return 0x22;
+				case sRTCSEC:   return ezj.rtc_sec;
+				case sRTCMIN:   return ezj.rtc_min;
+				case sRTCHOUR:  return ezj.rtc_hour;
+				case sRTCDAY:   return ezj.rtc_day;
+				case sRTCWEEK:  return ezj.rtc_week;
+				case sRTCMONTH: return ezj.rtc_month;
+				case sRTCYEAR:  return ezj.rtc_year;
 				default: return 0xFF;
 				}
 			}

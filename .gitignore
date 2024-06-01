@@ -1,3 +1,9 @@
 *.o
 *gnuboy
 config.*
+ezj/mp
+ezj/sd
+ezj/ezj_sd.dat
+ezj/ezj_sram.dat
+ezj/ezj_rtc.dat
+ezj/stage1.gb

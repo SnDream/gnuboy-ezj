@@ -6,6 +6,8 @@
 #include "emu.h"
 #include "hw.h"
 
+#include <time.h>
+
 #define EZJ_GET_U32(list, offset)  0  \
 	| (list)[(offset) + 0] << (8 * 0) \
 	| (list)[(offset) + 1] << (8 * 1) \
@@ -16,6 +18,7 @@
 
 #define EZJ_SD_FILE			"./ezj_sd.dat"
 #define EZJ_SRAM_FILE		"./ezj_sram.dat"
+#define EZJ_RTC_FILE		"./ezj_rtc.dat"
 #define EZJ_STAGE1_FILE		"./stage1.gb"
 
 #define SD_SECTOR_SIZE 512
@@ -190,6 +193,18 @@ struct ezj
 	byte unk1;
 	byte unk2;
 	byte unk3;
+
+	byte rtc_sec;
+	byte rtc_min;
+	byte rtc_hour;
+	byte rtc_day;
+	byte rtc_week;
+	byte rtc_month;
+	byte rtc_year;
+	time_t rtc_tt_now;
+	time_t rtc_tt_offset;
+	time_t rtc_tt_base;
+	struct tm rtc_tm;
 
 	un32 sd_sector;
 
